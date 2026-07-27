@@ -160,9 +160,6 @@ export async function POST(req: Request) {
         const requestedSource = String(data.source || "Manual Entry");
         const isManual = requestedSource.toLowerCase().includes("manual");
         const actorName = isManual ? (session.user.name || session.user.email || "Unknown") : "Auto Scrape";
-        if (isManual && dateStr !== todayStr) {
-            return NextResponse.json({ error: "Manual price updates are only allowed for today" }, { status: 400 });
-        }
         const { start: dayStart, end: dayEnd } = dateRangeForMarketDay(dateStr);
 
         const priceFields = {

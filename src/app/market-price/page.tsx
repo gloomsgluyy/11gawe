@@ -335,6 +335,11 @@ export default function MarketPricePage() {
         { label: "ICI 3 (5000)", val: safeNum(latest.ici_3), diff: safeNum(latest.ici_3) - safeNum(prev.ici_3), color: "#3b82f6" },
         { label: "ICI 4 (4200)", val: safeNum(latest.ici_4), diff: safeNum(latest.ici_4) - safeNum(prev.ici_4), color: "#8b5cf6" },
         { label: "ICI 5 (3400)", val: safeNum(latest.ici_5), diff: safeNum(latest.ici_5) - safeNum(prev.ici_5), color: "#6366f1" },
+        { label: "ICI 1 (6500)", val: safeNum(latest.ici_1), diff: safeNum(latest.ici_1) - safeNum(prev.ici_1), color: "#ef4444" },
+        { label: "ICI 2 (5800)", val: safeNum(latest.ici_2), diff: safeNum(latest.ici_2) - safeNum(prev.ici_2), color: "#f59e0b" },
+        { label: "ICI 3 (5000)", val: safeNum(latest.ici_3), diff: safeNum(latest.ici_3) - safeNum(prev.ici_3), color: "#3b82f6" },
+        { label: "ICI 4 (4200)", val: safeNum(latest.ici_4), diff: safeNum(latest.ici_4) - safeNum(prev.ici_4), color: "#8b5cf6" },
+        { label: "ICI 5 (3400)", val: safeNum(latest.ici_5), diff: safeNum(latest.ici_5) - safeNum(prev.ici_5), color: "#6366f1" },
         { label: "Newcastle", val: safeNum(latest.newcastle), diff: safeNum(latest.newcastle) - safeNum(prev.newcastle), color: "#ec4899" },
         { label: "HBA", val: safeNum(latest.hba), diff: safeNum(latest.hba) - safeNum(prev.hba), color: "#10b981" },
         { label: "HBA I (5300)", val: safeNum(latest.hba_1), diff: safeNum(latest.hba_1) - safeNum(prev.hba_1), color: "#14b8a6" },
@@ -360,11 +365,32 @@ export default function MarketPricePage() {
         setShowForm(true);
     };
 
+    const handleDateChange = (newDate: string) => {
+        const existingPrice = marketPrices.find((price) => sameInputDate(price.date, newDate));
+        if (existingPrice) {
+            setForm({
+                date: newDate,
+                ici_1: safeNum(existingPrice.ici_1),
+                ici_2: safeNum(existingPrice.ici_2),
+                ici_3: safeNum(existingPrice.ici_3),
+                ici_4: safeNum(existingPrice.ici_4),
+                ici_5: safeNum(existingPrice.ici_5),
+                newcastle: safeNum(existingPrice.newcastle),
+                hba: safeNum(existingPrice.hba),
+                hba_1: safeNum(existingPrice.hba_1),
+                hba_2: safeNum(existingPrice.hba_2),
+                hba_3: safeNum(existingPrice.hba_3),
+            });
+        } else {
+            setForm(marketFormDefaults(newDate));
+        }
+    };
+
     const handleSubmit = async () => {
         setIsSaving(true);
         try {
             await addMarketPrice({
-                date: todayInput,
+                date: form.date,
                 ici_1: form.ici_1 || 0,
                 ici_2: form.ici_2 || 0,
                 ici_3: form.ici_3 || 0,
@@ -716,14 +742,16 @@ export default function MarketPricePage() {
                     <div className="card-elevated p-4 space-y-4 animate-scale-in border border-primary/20">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div>
-                                <h3 className="text-sm font-semibold">Update Price Hari Ini</h3>
-                                <p className="text-[11px] text-muted-foreground">Manual input hanya mengubah record tanggal {todayInput}.</p>
+                                <h3 className="text-sm font-semibold">
+                                    {form.date === todayInput ? "Update Price Hari Ini" : `Update Price Tanggal ${form.date}`}
+                                </h3>
+                                <p className="text-[11px] text-muted-foreground">Manual input mengubah record tanggal {form.date}.</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 2xl:grid-cols-11 gap-2.5">
                             <div className="min-w-0">
                                 <label className="text-[9px] font-semibold text-muted-foreground uppercase">Date</label>
-                                <input type="date" value={todayInput} readOnly className="w-full mt-1 px-2 py-1.5 rounded-md bg-accent/50 border border-border text-xs outline-none cursor-not-allowed" />
+                                <input type="date" value={form.date} onChange={(e) => handleDateChange(e.target.value)} className="w-full mt-1 px-2 py-1.5 rounded-md bg-accent/50 border border-border text-xs outline-none focus:border-primary/50" />
                             </div>
                             {marketInputFields.map(([label, key]) => (
                                 <div key={key} className="min-w-0">
