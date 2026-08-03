@@ -8,12 +8,16 @@ import { useAuthStore } from "@/store/auth-store";
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const LS_TIME_KEY = "lastMarketScrapeTime";
 const LS_INTERVAL_KEY = "marketScrapeInterval";
+export const LS_ENABLED_KEY = "marketScraperEnabled";
 
 /**
  * GlobalMarketScraper
  * Runs in root layout — silently scrapes market prices in the background.
  * Uses localStorage to persist the last scrape timestamp across page refreshes.
  * Renders nothing (null).
+ *
+ * Toggle on/off via localStorage key "marketScraperEnabled" (default: "true").
+ * Dispatch window event "marketScraperToggled" after changing the key to apply immediately.
  */
 export function GlobalMarketScraper() {
     const { status } = useSession();
@@ -22,6 +26,7 @@ export function GlobalMarketScraper() {
     const addMarketPrice = useCommercialStore((s) => s.addMarketPrice);
     const scrapingRef = useRef(false);
     const [intervalMs, setIntervalMs] = useState(DEFAULT_INTERVAL_MS);
+    const [enabled, setEnabled] = useState(true);
 
     useEffect(() => {
         if (status !== "authenticated") return;
@@ -32,20 +37,38 @@ export function GlobalMarketScraper() {
             setIntervalMs(parseInt(storedInterval, 10));
         }
 
-        // Listen for setting changes
-        const handleReload = () => {
+        // Load enabled state (default true for backward compatibility)
+        const storedEnabled = localStorage.getItem(LS_ENABLED_KEY);
+        if (storedEnabled !== null) {
+            setEnabled(storedEnabled === "true");
+        }
+
+        // Listen for interval setting changes
+        const handleIntervalReload = () => {
             const newInterval = localStorage.getItem(LS_INTERVAL_KEY);
             if (newInterval) setIntervalMs(parseInt(newInterval, 10));
         };
-        window.addEventListener("marketScrapeIntervalChanged", handleReload);
-        return () => window.removeEventListener("marketScrapeIntervalChanged", handleReload);
+
+        // Listen for enabled toggle changes
+        const handleToggle = () => {
+            const val = localStorage.getItem(LS_ENABLED_KEY);
+            setEnabled(val !== "false"); // default to true if missing
+        };
+
+        window.addEventListener("marketScrapeIntervalChanged", handleIntervalReload);
+        window.addEventListener("marketScraperToggled", handleToggle);
+        return () => {
+            window.removeEventListener("marketScrapeIntervalChanged", handleIntervalReload);
+            window.removeEventListener("marketScraperToggled", handleToggle);
+        };
     }, [status]);
 
     useEffect(() => {
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
         let intervalId: ReturnType<typeof setInterval> | null = null;
 
-        if (status !== "authenticated" || !currentUser || !hasPermission("market_price_edit")) {
+        // Stop if not authenticated, no permission, or scraper disabled
+        if (status !== "authenticated" || !currentUser || !hasPermission("market_price_edit") || !enabled) {
             return () => undefined;
         }
 
@@ -96,7 +119,7 @@ export function GlobalMarketScraper() {
         const elapsed = Date.now() - lastTime;
 
         if (elapsed >= intervalMs || lastTime === 0) {
-            // Overdue or first time — scrape after a short delay (or immediately if interval is very short)
+            // Overdue or first time — scrape after a short delay
             const delay = Math.min(3000, intervalMs);
             timeoutId = setTimeout(() => {
                 doScrape().then(scheduleNext);
@@ -114,7 +137,7 @@ export function GlobalMarketScraper() {
             if (timeoutId) clearTimeout(timeoutId);
             if (intervalId) clearInterval(intervalId);
         };
-    }, [addMarketPrice, currentUser, hasPermission, intervalMs, status]);
+    }, [addMarketPrice, currentUser, hasPermission, intervalMs, status, enabled]);
 
     return null;
 }

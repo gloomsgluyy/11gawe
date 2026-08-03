@@ -10,6 +10,7 @@ import { ResponsiveContainer, ComposedChart, Line, Bar, XAxis, YAxis, CartesianG
 import { Toast } from "@/components/shared/toast";
 import { ModulePageSkeleton } from "@/components/shared/module-page-skeleton";
 import type { MarketPriceEntry, MarketPriceHistoryEntry } from "@/types";
+import { LS_ENABLED_KEY } from "@/components/global-market-scraper";
 
 interface Formula {
     name: string;
@@ -109,6 +110,7 @@ export default function MarketPricePage() {
     const [isScraping, setIsScraping] = React.useState(false);
     const [scrapeLogs, setScrapeLogs] = React.useState<string[]>([]);
     const [scrapeInterval, setScrapeInterval] = React.useState("21600000");
+    const [scraperEnabled, setScraperEnabled] = React.useState(true);
     const [chartRange, setChartRange] = React.useState<"2W" | "4W" | "All">("4W");
     const [comparisonIndex, setComparisonIndex] = React.useState<"ici_1" | "ici_2" | "ici_3" | "ici_4" | "ici_5" | "newcastle" | "hba">("ici_4");
 
@@ -118,6 +120,14 @@ export default function MarketPricePage() {
         setScrapeInterval(val);
         localStorage.setItem("marketScrapeInterval", val);
         window.dispatchEvent(new Event("marketScrapeIntervalChanged"));
+    };
+
+    const handleToggleScraper = () => {
+        const newVal = !scraperEnabled;
+        setScraperEnabled(newVal);
+        localStorage.setItem(LS_ENABLED_KEY, String(newVal));
+        window.dispatchEvent(new Event("marketScraperToggled"));
+        addLog(newVal ? "Auto-scraper ENABLED." : "Auto-scraper DISABLED — switch to manual mode.");
     };
 
     const fetchMarketPrices = React.useCallback(async () => {
@@ -170,6 +180,8 @@ export default function MarketPricePage() {
         setMounted(true);
         const stored = localStorage.getItem("marketScrapeInterval");
         if (stored) setScrapeInterval(stored);
+        const storedEnabled = localStorage.getItem(LS_ENABLED_KEY);
+        if (storedEnabled !== null) setScraperEnabled(storedEnabled === "true");
     }, []);
 
 
@@ -428,9 +440,15 @@ export default function MarketPricePage() {
                     <div>
                         <h1 className="text-xl md:text-2xl font-bold flex flex-wrap items-center gap-3">
                             Market Price Index
-                            <span className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase tracking-wider">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Global Scraping Active
-                            </span>
+                            {scraperEnabled ? (
+                                <span className="inline-flex items-center gap-1.5 text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded border border-emerald-500/20 font-bold uppercase tracking-wider">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Auto-Scrape Active
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1.5 text-[10px] bg-zinc-500/10 text-zinc-400 px-2 py-0.5 rounded border border-zinc-500/20 font-bold uppercase tracking-wider">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" /> Auto-Scrape Paused
+                                </span>
+                            )}
                         </h1>
                         <p className="text-sm text-muted-foreground">ICI, Newcastle &amp; HBA coal price tracking</p>
                     </div>
@@ -450,21 +468,42 @@ export default function MarketPricePage() {
                             <div className="flex items-center justify-between mb-6">
                                 <div>
                                     <h2 className="text-lg font-bold">Market Scraping</h2>
-                                    <p className="text-xs text-muted-foreground mt-1">Global background scraping is active (every 6 hours).</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Configure auto-scraping or switch to manual mode.</p>
                                 </div>
                                 <button onClick={() => setShowScrapeSettings(false)} className="p-2 hover:bg-accent rounded-lg transition-colors"><X className="w-4 h-4" /></button>
                             </div>
 
                             <div className="space-y-5">
-                                <div className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10">
+                                {/* --- Toggle ON/OFF --- */}
+                                <div className={cn("flex items-center justify-between p-3 rounded-xl border transition-all", scraperEnabled ? "border-emerald-500/30 bg-emerald-500/10" : "border-zinc-500/30 bg-zinc-500/10")}>
                                     <div>
-                                        <p className="text-sm font-semibold text-emerald-600">Global Auto-Scraping</p>
-                                        <p className="text-[10px] text-muted-foreground">Runs automatically in the background, regardless of which page you are on.</p>
+                                        <p className={cn("text-sm font-semibold", scraperEnabled ? "text-emerald-600" : "text-zinc-400")}>Auto-Scraping</p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            {scraperEnabled
+                                                ? "Running in background. Prices update automatically."
+                                                : "Paused — input harga manual, atau nyalakan lagi kapan saja."
+                                            }
+                                        </p>
                                     </div>
-                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
+                                    {/* Toggle Switch */}
+                                    <button
+                                        onClick={handleToggleScraper}
+                                        className={cn(
+                                            "relative inline-flex items-center h-6 w-11 rounded-full transition-colors focus:outline-none flex-shrink-0",
+                                            scraperEnabled ? "bg-emerald-500" : "bg-zinc-600"
+                                        )}
+                                        aria-label={scraperEnabled ? "Matikan auto-scraper" : "Nyalakan auto-scraper"}
+                                    >
+                                        <span
+                                            className={cn(
+                                                "inline-block w-4 h-4 bg-white rounded-full shadow transform transition-transform",
+                                                scraperEnabled ? "translate-x-6" : "translate-x-1"
+                                            )}
+                                        />
+                                    </button>
                                 </div>
 
-                                <div className="space-y-1.5">
+                                <div className={cn("space-y-1.5", !scraperEnabled && "opacity-40 pointer-events-none")}>
                                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Scraping Interval</label>
                                     <select value={scrapeInterval} onChange={(e) => handleIntervalChange(e.target.value)} className="w-full px-3 py-2 bg-accent/30 rounded-lg border border-border text-sm outline-none focus:border-primary/50">
                                         <option value="3000">Every 3 Seconds (Testing)</option>
@@ -480,7 +519,8 @@ export default function MarketPricePage() {
                                 <div className="space-y-2 pt-2 border-t border-border/50">
                                     <label className="text-[10px] font-semibold text-muted-foreground uppercase flex justify-between">
                                         <span>Target Sources</span>
-                                        <span className="text-emerald-500 font-bold tracking-wider animate-pulse">Running...</span>
+                                        {scraperEnabled && <span className="text-emerald-500 font-bold tracking-wider animate-pulse">Running...</span>}
+                                        {!scraperEnabled && <span className="text-zinc-400 font-bold tracking-wider">Paused</span>}
                                     </label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {["GlobalCoal API", "Argus Media", "McCloskey", "ICE Futures"].map(source => (
